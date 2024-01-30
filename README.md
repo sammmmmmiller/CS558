@@ -1,1 +1,1 @@
-# CS558
+# Computer Networking
