@@ -13,7 +13,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 if len(sys.argv) <= 1:
-    logging.error('Usage: "python ProxyServer.py server_port"\n[server_port : It is the Port Number Of Proxy Server]')
+    logging.error('Usage: "python webproxy.py server_port"\n[server_port : port number of proxy server]')
     sys.exit(2)
 
 try:
@@ -45,24 +45,28 @@ while True:
         
         url = ""
         host = ""    
+        
+        line1 = line[0].split(' ')
+        if not line1[0].startswith('GET'):
+            raise NotImplementedError()
+        url = line1[1][1:]
+        
         for line in message_lines:
-            print(line)
-            if line.startswith('GET'):
-                url = line.split(' ')[1]
-            elif line.lower().startswith('host:'):
+            if line.lower().startswith('host:'):
                 host = line.split(': ')[1].strip()
-        print(url)
-        print(host)
+                break
+
         if not url:
             logging.error("Received request without a URL.")
             tcpCliSock.close()
             continue
-        
+        print(url)
+        print(host)
         destSock = socket(AF_INET, SOCK_STREAM)
-        destSock.connect((host, 80))
+        destSock.connect((url, 80))
         http_get_request = f"GET {url} HTTP/1.0\r\nHost: {host}\r\n\r\n"
         destSock.sendall(http_get_request.encode('utf-8'))
-        
+        print("well")
         response = b""
         while True:
             part = destSock.recv(4096)
@@ -73,6 +77,7 @@ while True:
         
     except Exception as e:
         logging.error(f"Error handling request: {e}")
+        
     finally:
         tcpCliSock.close()
         destSock.close()
