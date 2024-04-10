@@ -4,12 +4,11 @@ Created on Tue Apr  2 17:30:43 2024
 
 @author: Sam
 """
-
+from urllib.parse import urlparse
 from socket import *
 import sys
 import logging
 
-# Setup basic logging
 logging.basicConfig(level=logging.INFO)
 
 if len(sys.argv) <= 1:
@@ -37,42 +36,37 @@ while True:
         logging.info(f'Received a connection from: {addr}')
     except Exception as e:
         logging.error(f"Error accepting connection: {e}")
-        continue
+        break
 
     try:
         message = tcpCliSock.recv(4096).decode('utf-8')
         message_lines = message.split('\n')
+        method, full_url, version = message_lines[0].split(' ')
+        parsed_url = urlparse(full_url)
+        hostname = parsed_url.hostname
+        path = parsed_url.path or '/'
         
-        url = ""
-        host = ""    
-        
-        line1 = line[0].split(' ')
-        if not line1[0].startswith('GET'):
-            raise NotImplementedError()
-        url = line1[1][1:]
-        
-        for line in message_lines:
-            if line.lower().startswith('host:'):
-                host = line.split(': ')[1].strip()
-                break
-
-        if not url:
-            logging.error("Received request without a URL.")
+        if method != 'GET':
+            tcpCliSock.sendall(b"HTTP/1.0 501 Not Implemented\r\n\r\n")
             tcpCliSock.close()
-            continue
-        print(url)
-        print(host)
+        
+        # for line in message_lines:
+        #     if line.lower().startswith('host:'):
+        #         host = line.split(': ')[1].strip()
+        #         break
+
         destSock = socket(AF_INET, SOCK_STREAM)
-        destSock.connect((url, 80))
-        http_get_request = f"GET {url} HTTP/1.0\r\nHost: {host}\r\n\r\n"
+        destSock.connect((hostname, 80))
+        http_get_request = f"GET {path} HTTP/1.0\r\nHost: {hostname}\r\n\r\n"
         destSock.sendall(http_get_request.encode('utf-8'))
-        print("well")
+        
         response = b""
         while True:
             part = destSock.recv(4096)
             if not part: 
                 break
             response += part
+        
         tcpCliSock.sendall(response)
         
     except Exception as e:
@@ -81,5 +75,6 @@ while True:
     finally:
         tcpCliSock.close()
         destSock.close()
-        tcpSerSock.close()
-        break
+
+tcpSerSock.close()
+        
